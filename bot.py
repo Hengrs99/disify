@@ -1,5 +1,6 @@
 import os
 
+import spotify
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -8,6 +9,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 bot = commands.Bot(command_prefix="#", help_command=None)
+spotify = spotify.Spotify()
 
 
 @bot.event
@@ -32,5 +34,13 @@ async def leave(ctx):
     except AttributeError:
         await ctx.send("I'm not connected to any channel you could kick me out of!")
 
+
+@bot.command(name='find')
+async def find(ctx, song_name):
+    try:
+        song = spotify.find(song_name)
+        await ctx.send(f"I found {song} on Spotify!")
+    except:
+        await ctx.send("Sorry, I couldn't find anything...")
 
 bot.run(TOKEN)
