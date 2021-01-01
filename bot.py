@@ -1,9 +1,10 @@
 import os
 import spotify
 import discord
+import requests
 from dotenv import load_dotenv
 from discord.ext import commands
-from functions import name_to_query
+import functions
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -45,7 +46,20 @@ async def find(ctx, *args):
     except:
         await ctx.send("Sorry, I couldn't find anything...")
 
-    embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=name_to_query(song.name, song.artist))
+    embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=functions.name_to_query(song.name, song.artist))
     await ctx.send(embed=embed)
+
+@bot.command(name='login')
+async def login(ctx):
+    os.remove('tmp.txt')
+    request = "https://accounts.spotify.com/authorize?client_id=" + client.cid + "&" + "response_type=code" + "&" + "scope=playlist-read-private+playlist-read-collaborative+user-library-read" "&" + "redirect_uri=http://127.0.0.1:8000/callback"
+    embed = discord.Embed(title="Link", url=request)
+    await ctx.send(embed=embed)
+    code = functions.read_tmp()
+    if code == "":
+        while functions.read_tmp() == "":
+            continue
+        code = functions.read_tmp()
+    await ctx.send(code)
 
 bot.run(TOKEN)
