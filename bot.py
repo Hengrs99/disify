@@ -1,15 +1,15 @@
 import os
-
 import spotify
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
+from functions import name_to_query
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 bot = commands.Bot(command_prefix="#", help_command=None)
-spotify = spotify.Spotify()
+client = spotify.Client()
 
 
 @bot.event
@@ -36,11 +36,16 @@ async def leave(ctx):
 
 
 @bot.command(name='find')
-async def find(ctx, song_name):
+async def find(ctx, *args):
     try:
-        song = spotify.find(song_name)
-        await ctx.send(f"I found {song} on Spotify!")
+        searched_expression = "+".join(args)
+        song_info = client.find(searched_expression)
+        song = spotify.Song(song_info[0], song_info[1], song_info[2])
+        
     except:
         await ctx.send("Sorry, I couldn't find anything...")
+
+    embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=name_to_query(song.name, song.artist))
+    await ctx.send(embed=embed)
 
 bot.run(TOKEN)

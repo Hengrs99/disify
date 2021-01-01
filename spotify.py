@@ -3,7 +3,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 
-class Spotify:
+class Client:
     def __init__(self):
         load_dotenv()
         self.cid = os.getenv('CLIENT_ID')
@@ -13,4 +13,13 @@ class Spotify:
 
     def find(self, song_name):
         song = self.sp.search(q=song_name, type="track", limit=1)
-        return song["tracks"]["items"][0]["name"]
+        name = song["tracks"]["items"][0]["name"]
+        album = song["tracks"]["items"][0]["album"]["name"]
+        artist = song["tracks"]["items"][0]["artists"][0]["name"]
+        return name, album, artist
+
+class Song:
+    def __init__(self, name, album, artist):
+        self.name = name
+        self.album = album
+        self.artist = artist
