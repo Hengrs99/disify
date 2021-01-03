@@ -16,6 +16,7 @@ class Client:
         name = song["tracks"]["items"][0]["name"]
         album = song["tracks"]["items"][0]["album"]["name"]
         artist = song["tracks"]["items"][0]["artists"][0]["name"]
+
         return name, album, artist
 
 class Song:
@@ -23,3 +24,15 @@ class Song:
         self.name = name
         self.album = album
         self.artist = artist
+
+
+class AuthManager:
+    def __init__(self, redirect_uri):
+        self.cid = os.getenv('CLIENT_ID')
+        self.redirect_uri = redirect_uri
+        self.scopes = "playlist-read-private+playlist-read-collaborative+user-library-read"
+
+    def create_auth_request(self):
+        request = "https://accounts.spotify.com/authorize?client_id=" + self.cid + "&response_type=code&scope=" + self.scopes + "&redirect_uri=" + self.redirect_uri
+
+        return request

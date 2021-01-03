@@ -12,6 +12,9 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 bot = commands.Bot(command_prefix="#", help_command=None)
 client = spotify.Client()
 
+redirect_uri = "http://127.0.0.1:8000/callback"
+auth_manager = spotify.AuthManager(redirect_uri)
+
 
 @bot.event
 async def on_ready():
@@ -51,15 +54,20 @@ async def find(ctx, *args):
 
 @bot.command(name='login')
 async def login(ctx):
-    os.remove('tmp.txt')
-    request = "https://accounts.spotify.com/authorize?client_id=" + client.cid + "&" + "response_type=code" + "&" + "scope=playlist-read-private+playlist-read-collaborative+user-library-read" "&" + "redirect_uri=http://127.0.0.1:8000/callback"
+    if functions.tmp_exists():
+        os.remove('tmp.txt')
+    
+    request = auth_manager.create_auth_request()
     embed = discord.Embed(title="Link", url=request)
+
     await ctx.send(embed=embed)
     code = functions.read_tmp()
-    if code == "":
-        while functions.read_tmp() == "":
+
+    if code == "Not Generated":
+        while functions.read_tmp() == "Not Generated":
             continue
         code = functions.read_tmp()
-    await ctx.send(code)
+        
+    print(code)
 
 bot.run(TOKEN)
