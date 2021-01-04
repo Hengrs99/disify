@@ -1,5 +1,7 @@
 import os
 import spotipy
+import requests
+import base64
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 
@@ -19,6 +21,17 @@ class Client:
 
         return name, album, artist
 
+    def get_user_profile(self, access_token):
+        url = "https://api.spotify.com/v1/me"
+        headers = {"Authorization": f"Bearer {access_token}",
+                   "Content-type": "application/x-www-form-urlencoded"}
+        
+        response = requests.get(url, headers=headers)
+
+        return response
+
+
+
 class Song:
     def __init__(self, name, album, artist):
         self.name = name
@@ -29,10 +42,28 @@ class Song:
 class AuthManager:
     def __init__(self, redirect_uri):
         self.cid = os.getenv('CLIENT_ID')
+        self.secret = os.getenv('SECRET_ID')
         self.redirect_uri = redirect_uri
-        self.scopes = "playlist-read-private+playlist-read-collaborative+user-library-read"
+        self.scopes = "user-read-email+user-read-private"
 
     def create_auth_request(self):
         request = "https://accounts.spotify.com/authorize?client_id=" + self.cid + "&response_type=code&scope=" + self.scopes + "&redirect_uri=" + self.redirect_uri
 
         return request
+
+    def get_access_token(self, code):
+        auth_str = bytes('{}:{}'.format(self.cid, self.secret), 'utf-8')
+        b64_auth_str = base64.b64encode(auth_str).decode('utf-8')
+
+        url = "https://accounts.spotify.com/api/token"
+
+        payload = {"grant_type": "authorization_code",
+                   "code": code,
+                   "redirect_uri": self.redirect_uri}
+        
+        headers = {"Authorization": "Basic {}".format(b64_auth_str),
+                   "Content-type": "application/x-www-form-urlencoded"}
+
+        response = requests.post(url, params=payload, headers=headers)
+        
+        return response

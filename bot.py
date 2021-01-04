@@ -2,6 +2,7 @@ import os
 import spotify
 import discord
 import requests
+import json
 from dotenv import load_dotenv
 from discord.ext import commands
 import functions
@@ -68,6 +69,12 @@ async def login(ctx):
             continue
         code = functions.read_tmp()
         
-    print(code)
+    response = json.loads(auth_manager.get_access_token(code).text)
+    access_token = response["access_token"]
+    refresh_token = response["refresh_token"]
+
+    user_profile  = client.get_user_profile(access_token).text
+    print(user_profile)
+
 
 bot.run(TOKEN)
