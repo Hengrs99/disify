@@ -68,6 +68,9 @@ async def login(ctx):
         while functions.read_tmp() == "Not Generated":
             continue
         code = functions.read_tmp()
+
+    if functions.tmp_exists():
+        os.remove('tmp.txt')
         
     response = json.loads(auth_manager.get_access_token(code).text)
     access_token = response["access_token"]
