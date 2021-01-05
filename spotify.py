@@ -51,14 +51,15 @@ class AuthManager:
 
         return request
 
-    def get_access_token(self, code):
+    def get_tokens(self, code):
+        self.code = code
         auth_str = bytes('{}:{}'.format(self.cid, self.secret), 'utf-8')
         b64_auth_str = base64.b64encode(auth_str).decode('utf-8')
 
         url = "https://accounts.spotify.com/api/token"
 
         payload = {"grant_type": "authorization_code",
-                   "code": code,
+                   "code": self.code,
                    "redirect_uri": self.redirect_uri}
         
         headers = {"Authorization": "Basic {}".format(b64_auth_str),
@@ -66,4 +67,20 @@ class AuthManager:
 
         response = requests.post(url, params=payload, headers=headers)
         
+        return response
+
+    def get_new_token(self, refresh_token):
+        auth_str = bytes('{}:{}'.format(self.cid, self.secret), 'utf-8')
+        b64_auth_str = base64.b64encode(auth_str).decode('utf-8')
+        
+        url = "application/x-www-form-urlencoded"
+
+        payload = {"grant_type": "refresh_token",
+                   "refresh_token": refresh_token}
+
+        headers = {"Authorization": "Basic {}".format(b64_auth_str),
+                   "Content-type": "application/x-www-form-urlencoded"}
+
+        response = requests.post(url, params=payload, headers=headers)
+
         return response

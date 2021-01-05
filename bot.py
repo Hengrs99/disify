@@ -72,12 +72,10 @@ async def login(ctx):
     if functions.tmp_exists():
         os.remove('tmp.txt')
         
-    response = json.loads(auth_manager.get_access_token(code).text)
-    access_token = response["access_token"]
-    refresh_token = response["refresh_token"]
+    response = json.loads(auth_manager.get_tokens(code).text)
 
-    user_profile  = client.get_user_profile(access_token).text
-    print(user_profile)
+    os.environ['ACCESS_TOKEN'] = response["access_token"]
+    os.environ['REFRESH_TOKEN'] = response["refresh_token"]
 
 
 bot.run(TOKEN)
