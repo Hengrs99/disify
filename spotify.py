@@ -30,7 +30,15 @@ class Client:
 
         return response
 
+    def get_user_playlists(self, access_token, user_id):
+        url = "https://api.spotify.com/v1"
 
+        headers = {"Authorization": access_token}
+        payload = {"user_id": user_id}
+
+        response = requests.get(url, params=payload, headers=headers)
+
+        return response
 
 class Song:
     def __init__(self, name, album, artist):
@@ -44,7 +52,7 @@ class AuthManager:
         self.cid = os.getenv('CLIENT_ID')
         self.secret = os.getenv('SECRET_ID')
         self.redirect_uri = redirect_uri
-        self.scopes = "user-read-email+user-read-private"
+        self.scopes = "user-read-email+user-read-private+playlist-read-private+playlist-read-collaborative"
 
     def create_auth_request(self):
         request = "https://accounts.spotify.com/authorize?client_id=" + self.cid + "&response_type=code&scope=" + self.scopes + "&redirect_uri=" + self.redirect_uri

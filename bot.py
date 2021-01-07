@@ -78,4 +78,25 @@ async def login(ctx):
     os.environ['REFRESH_TOKEN'] = response["refresh_token"]
 
 
+@bot.command(name='playlists')
+async def playlists(ctx):
+    access_token = os.getenv('ACCESS_TOKEN')
+    refresh_token = os.getenv('REFRESH_TOKEN')
+
+    user_data = json.loads(client.get_user_profile(access_token).text)
+
+    try:
+        id = user_data['id']
+    except KeyError:
+        if user_data['error']['status'] == '401':
+            access_token = auth_manager.get_new_token(refresh_token)
+            user_data = json.loads(client.get_user_profile(access_token).text)
+            id = user_data['id']
+        else:
+            id = "error"
+            await ctx.send("Sorry, something went wrong...")
+
+    print(id)
+
 bot.run(TOKEN)
+
