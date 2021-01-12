@@ -30,13 +30,22 @@ class Client:
 
         return response
 
-    def get_user_playlists(self, access_token, user_id):
+    def get_current_user_playlists(self, access_token, user_id):
         url = "https://api.spotify.com/v1"
 
         headers = {"Authorization": access_token}
         payload = {"user_id": user_id}
 
         response = requests.get(url, params=payload, headers=headers)
+
+        return response
+
+    def get_user_playlists(self, access_token):
+        url = "https://api.spotify.com/v1/me/playlists"
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+
+        response = requests.get(url, headers=headers)
 
         return response
 

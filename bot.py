@@ -55,9 +55,6 @@ async def find(ctx, *args):
 
 @bot.command(name='login')
 async def login(ctx):
-    if functions.tmp_exists():
-        os.remove('tmp.txt')
-    
     request = auth_manager.create_auth_request()
     embed = discord.Embed(title="Link", url=request)
 
@@ -83,20 +80,22 @@ async def playlists(ctx):
     access_token = os.getenv('ACCESS_TOKEN')
     refresh_token = os.getenv('REFRESH_TOKEN')
 
-    user_data = json.loads(client.get_user_profile(access_token).text)
+    user_playlists = json.loads(client.get_user_playlists(access_token).text)
 
     try:
-        id = user_data['id']
+        for item in user_playlists["items"]:
+            await ctx.send(item["name"])
     except KeyError:
-        if user_data['error']['status'] == '401':
+        if user_playlists['error']['status'] == '401':
             access_token = auth_manager.get_new_token(refresh_token)
-            user_data = json.loads(client.get_user_profile(access_token).text)
-            id = user_data['id']
+            user_playlists = json.loads(client.get_user_playlists(access_token).text)
+            for item in user_playlists["items"]:
+                await ctx.send(item["name"])
         else:
-            id = "error"
-            await ctx.send("Sorry, something went wrong...")
+            await ctx.send("Sorry, something went wrong, are you logged in?")
 
-    print(id)
+    
+    
 
 bot.run(TOKEN)
 
