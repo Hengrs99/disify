@@ -49,6 +49,17 @@ class Client:
 
         return response
 
+    def get_playlist(self, access_token, playlist_id):
+        url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+        payload = {"market": "CZ"}
+
+        response = requests.get(url, params=payload, headers=headers)
+
+        return response
+
+
 class Song:
     def __init__(self, name, album, artist):
         self.name = name

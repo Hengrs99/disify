@@ -55,6 +55,9 @@ async def find(ctx, *args):
 
 @bot.command(name='login')
 async def login(ctx):
+    if functions.tmp_exists():
+        os.remove('tmp.txt')
+        
     request = auth_manager.create_auth_request()
     embed = discord.Embed(title="Link", url=request)
 
@@ -81,6 +84,7 @@ async def playlists(ctx):
     refresh_token = os.getenv('REFRESH_TOKEN')
 
     user_playlists = json.loads(client.get_user_playlists(access_token).text)
+    print(user_playlists)
 
     try:
         for item in user_playlists["items"]:
@@ -94,8 +98,54 @@ async def playlists(ctx):
         else:
             await ctx.send("Sorry, something went wrong, are you logged in?")
 
-    
-    
+
+@bot.command(name="play")
+async def play(ctx, *args):
+    access_token = os.getenv('ACCESS_TOKEN')
+    refresh_token = os.getenv('REFRESH_TOKEN')
+
+    status = 0
+    playlist_name = " ".join(args)
+    user_playlists = json.loads(client.get_user_playlists(access_token).text)
+
+    try:
+        for item in user_playlists["items"]:
+            if item['name'] == playlist_name:
+                playlist_id = item['id']
+                playlist_name = item['name']
+                status = 1
+        if status == 0:
+            await ctx.send("Sorry, I didn't find that playlist")
+        else:
+            await ctx.send(f"Playing {playlist_name}")
+    except KeyError:
+        if user_playlists['error']['status'] == '401':
+            access_token = auth_manager.get_new_token(refresh_token)
+            user_playlists = json.loads(client.get_user_playlists(access_token).text)
+            for item in user_playlists["items"]:
+                if item['name'] == playlist_name:
+                    playlist_id = item['id']
+                    playlist_name = item['name']
+                    status = 1
+            if status == 0:
+                await ctx.send("Sorry, I didn't find that playlist")
+            else:
+                await ctx.send(f"Playing {playlist_name}")
+        else:
+            await ctx.send("Sorry, something went wrong, are you logged in?")
+
+    items = json.loads(client.get_playlist(access_token, playlist_id).text)
+
+    for item in items["items"]:
+        track_name = item['track']['name']
+        track_album = item['track']['album']['name']
+        track_artists = item['track']['album']['artists'][0]['name']
+
+        song = spotify.Song(track_name, track_album, track_artists)
+        embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=functions.name_to_query(song.name, song.artist))
+
+        await ctx.send(embed=embed)
+
 
 bot.run(TOKEN)
 
