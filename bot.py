@@ -57,6 +57,7 @@ async def find(ctx, *args):
 
 @bot.command(name='login')
 async def login(ctx):
+    token_refresher = spotify.TokenRefresher()
     tmp_manager = file_manager.Manager("tmp.txt")
 
     if tmp_manager.file_exists():
@@ -78,12 +79,12 @@ async def login(ctx):
         
     response = json.loads(auth_manager.get_tokens(code).text)
     token_expiration = response["expires_in"]
-    auth_manager.start_refresh_cycle(token_expiration)
+    token_refresher.start_refresh_cycle(token_expiration)
 
     dotenv_file = dotenv.find_dotenv()
     dotenv.load_dotenv(dotenv_file)
 
-    dotenv.set_key(dotenv_file, 'ACCESS_TOKEN', response["access_token"])
+    dotenv.set_key(dotenv_file, 'ACCESS_TOKEN', response['access_token'])
     dotenv.set_key(dotenv_file, 'REFRESH_TOKEN', response["refresh_token"])
 
 
@@ -102,34 +103,22 @@ async def playlists(ctx):
 async def play(ctx, *args):
     load_dotenv()
     access_token = os.getenv('ACCESS_TOKEN')
-
-    status = 0
     playlist_name = " ".join(args)
-    playlist = spotify.Playlist(playlist_name)
     user_playlists = json.loads(client.get_user_playlists(access_token).text)
+    selected_playlist = client.playlist_exists(user_playlists, playlist_name)
 
-    for item in user_playlists["items"]:
-        if item['name'] == playlist_name:
-            playlist_id = item['id']
-            playlist_name = item['name']
-            status = 1
-    if status == 0:
-        await ctx.send("Sorry, I didn't find that playlist")
-    else:
+    if selected_playlist:
+        playlist_id = selected_playlist[0]
+        playlist_name = selected_playlist[1]
         await ctx.send(f"Playing {playlist_name}")
+    else:
+        await ctx.send("Sorry, couldn't find that playlist...")
 
     items = json.loads(client.get_playlist(access_token, playlist_id).text)
+    playlist = client.create_playlist(playlist_name, items)
 
-    for item in items["items"]:
-        track_name = item['track']['name']
-        track_album = item['track']['album']['name']
-        track_artists = item['track']['album']['artists'][0]['name']
-
-        song = spotify.Song(track_name, track_album, track_artists)
-        playlist.add_song(song)
-
-        embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=client.name_to_query(song.name, song.artist))
-
+    for item in playlist.items:
+        embed = discord.Embed(title=item.name, description=f"from {item.album} by {item.artist}", url=client.name_to_query(item.name, item.artist))
         await ctx.send(embed=embed)
 
 

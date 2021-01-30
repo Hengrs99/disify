@@ -70,6 +70,33 @@ class Client:
 
         return response
 
+    def playlist_exists(self, user_playlists, playlist_name):
+        playlist_exists = False
+        for item in user_playlists["items"]:
+            if item['name'] == playlist_name:
+                playlist_id = item['id']
+                playlist_name = item['name']
+                playlist_exists = True
+                return playlist_id, playlist_name
+            else:
+                continue
+
+        if not playlist_exists:
+            return None
+
+    def create_playlist(self, playlist_name, items):
+        playlist = Playlist(playlist_name)
+
+        for item in items["items"]:
+            track_name = item['track']['name']
+            track_album = item['track']['album']['name']
+            track_artists = item['track']['album']['artists'][0]['name']
+
+            song = Song(track_name, track_album, track_artists)
+            playlist.add_song(song)
+
+        return playlist
+
 
 class Song:
     def __init__(self, name, album, artist):
@@ -116,6 +143,12 @@ class AuthManager:
         
         return response
 
+
+class TokenRefresher:
+    def __init__(self):
+        self.cid = os.getenv('CLIENT_ID')
+        self.secret = os.getenv('SECRET_ID')
+
     def get_new_token(self, refresh_token):
         auth_str = bytes('{}:{}'.format(self.cid, self.secret), 'utf-8')
         b64_auth_str = base64.b64encode(auth_str).decode('utf-8')
@@ -123,10 +156,10 @@ class AuthManager:
         url = "application/x-www-form-urlencoded"
 
         payload = {"grant_type": "refresh_token",
-                   "refresh_token": refresh_token}
+                    "refresh_token": refresh_token}
 
         headers = {"Authorization": "Basic {}".format(b64_auth_str),
-                   "Content-type": "application/x-www-form-urlencoded"}
+                    "Content-type": "application/x-www-form-urlencoded"}
 
         response = requests.post(url, params=payload, headers=headers)
 
@@ -134,6 +167,7 @@ class AuthManager:
 
     def start_refresh_cycle(self, token_expiration):
         refresh_cycle = threading.Thread(target=self.__keep_token_updated, args=(token_expiration,))
+        refresh_cycle.daemon = True
         refresh_cycle.start()
 
     def __keep_token_updated(self, token_expiration):
@@ -144,7 +178,6 @@ class AuthManager:
         while not expired:
             if token_expiration - 120 > exp_timer.elapsed_time():
                 time.sleep(1)
-                continue
             else:
                 load_dotenv()
                 refresh_token = os.getenv('REFRESH_TOKEN')
@@ -156,4 +189,4 @@ class AuthManager:
                 dotenv.set_key(dotenv_file, 'ACCESS_TOKEN', access_token)
 
                 self.start_refresh_cycle(token_expiration)
-                expired = False
+                expired = True
