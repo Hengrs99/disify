@@ -3,9 +3,11 @@ import spotify
 import discord
 import requests
 import json
+import threading
+import dotenv
 from dotenv import load_dotenv
 from discord.ext import commands
-import functions
+import file_manager
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -50,89 +52,71 @@ async def find(ctx, *args):
     except:
         await ctx.send("Sorry, I couldn't find anything...")
 
-    embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=functions.name_to_query(song.name, song.artist))
+    embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=client.name_to_query(song.name, song.artist))
     await ctx.send(embed=embed)
 
 @bot.command(name='login')
 async def login(ctx):
-    if functions.tmp_exists():
-        os.remove('tmp.txt')
+    tmp_manager = file_manager.Manager("tmp.txt")
+
+    if tmp_manager.file_exists():
+        tmp_manager.delete_file()
         
     request = auth_manager.create_auth_request()
     embed = discord.Embed(title="Link", url=request)
 
     await ctx.send(embed=embed)
-    code = functions.read_tmp()
+    code = tmp_manager.read_file()
 
     if code == "Not Generated":
-        while functions.read_tmp() == "Not Generated":
+        while tmp_manager.read_file() == "Not Generated":
             continue
-        code = functions.read_tmp()
+        code = tmp_manager.read_file()
 
-    if functions.tmp_exists():
-        os.remove('tmp.txt')
+    if tmp_manager.file_exists():
+        tmp_manager.delete_file()
         
     response = json.loads(auth_manager.get_tokens(code).text)
+    token_expiration = response["expires_in"]
+    auth_manager.start_refresh_cycle(token_expiration)
 
-    os.environ['ACCESS_TOKEN'] = response["access_token"]
-    os.environ['REFRESH_TOKEN'] = response["refresh_token"]
+    dotenv_file = dotenv.find_dotenv()
+    dotenv.load_dotenv(dotenv_file)
+
+    dotenv.set_key(dotenv_file, 'ACCESS_TOKEN', response["access_token"])
+    dotenv.set_key(dotenv_file, 'REFRESH_TOKEN', response["refresh_token"])
 
 
 @bot.command(name='playlists')
 async def playlists(ctx):
+    load_dotenv()
     access_token = os.getenv('ACCESS_TOKEN')
-    refresh_token = os.getenv('REFRESH_TOKEN')
 
     user_playlists = json.loads(client.get_user_playlists(access_token).text)
-    print(user_playlists)
 
-    try:
-        for item in user_playlists["items"]:
-            await ctx.send(item["name"])
-    except KeyError:
-        if user_playlists['error']['status'] == '401':
-            access_token = auth_manager.get_new_token(refresh_token)
-            user_playlists = json.loads(client.get_user_playlists(access_token).text)
-            for item in user_playlists["items"]:
-                await ctx.send(item["name"])
-        else:
-            await ctx.send("Sorry, something went wrong, are you logged in?")
+    for item in user_playlists["items"]:
+        await ctx.send(item["name"])
 
 
 @bot.command(name="play")
 async def play(ctx, *args):
+    load_dotenv()
     access_token = os.getenv('ACCESS_TOKEN')
-    refresh_token = os.getenv('REFRESH_TOKEN')
 
     status = 0
     playlist_name = " ".join(args)
+    playlist = spotify.Playlist(playlist_name)
     user_playlists = json.loads(client.get_user_playlists(access_token).text)
 
-    try:
-        for item in user_playlists["items"]:
-            if item['name'] == playlist_name:
-                playlist_id = item['id']
-                playlist_name = item['name']
-                status = 1
-        if status == 0:
-            await ctx.send("Sorry, I didn't find that playlist")
-        else:
-            await ctx.send(f"Playing {playlist_name}")
-    except KeyError:
-        if user_playlists['error']['status'] == '401':
-            access_token = auth_manager.get_new_token(refresh_token)
-            user_playlists = json.loads(client.get_user_playlists(access_token).text)
-            for item in user_playlists["items"]:
-                if item['name'] == playlist_name:
-                    playlist_id = item['id']
-                    playlist_name = item['name']
-                    status = 1
-            if status == 0:
-                await ctx.send("Sorry, I didn't find that playlist")
-            else:
-                await ctx.send(f"Playing {playlist_name}")
-        else:
-            await ctx.send("Sorry, something went wrong, are you logged in?")
+    for item in user_playlists["items"]:
+        if item['name'] == playlist_name:
+            playlist_id = item['id']
+            playlist_name = item['name']
+            status = 1
+    if status == 0:
+        await ctx.send("Sorry, I didn't find that playlist")
+    else:
+        await ctx.send(f"Playing {playlist_name}")
 
     items = json.loads(client.get_playlist(access_token, playlist_id).text)
 
@@ -142,7 +126,9 @@ async def play(ctx, *args):
         track_artists = item['track']['album']['artists'][0]['name']
 
         song = spotify.Song(track_name, track_album, track_artists)
-        embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=functions.name_to_query(song.name, song.artist))
+        playlist.add_song(song)
+
+        embed = discord.Embed(title=song.name, description=f"from {song.album} by {song.artist}", url=client.name_to_query(song.name, song.artist))
 
         await ctx.send(embed=embed)
 

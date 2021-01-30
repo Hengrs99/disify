@@ -3,7 +3,11 @@ import spotipy
 import requests
 import base64
 from spotipy.oauth2 import SpotifyClientCredentials
+import dotenv
 from dotenv import load_dotenv
+import threading
+import timer
+import time
 
 class Client:
     def __init__(self):
@@ -20,6 +24,13 @@ class Client:
         artist = song["tracks"]["items"][0]["artists"][0]["name"]
 
         return name, album, artist
+
+    def name_to_query(self, name, artist):
+        modified_name = name.replace(" ", "+")
+        modified_artist = artist.replace(" ", "+")
+        search_query = "https://www.youtube.com/results?search_query=" + modified_name + "+" + modified_artist
+
+        return search_query
 
     def get_user_profile(self, access_token):
         url = "https://api.spotify.com/v1/me"
@@ -67,6 +78,14 @@ class Song:
         self.artist = artist
 
 
+class Playlist:
+    def __init__(self, name):
+        self.name = name
+        self.items = []
+    
+    def add_song(self, song):
+        self.items.append(song)
+
 class AuthManager:
     def __init__(self, redirect_uri):
         self.cid = os.getenv('CLIENT_ID')
@@ -112,3 +131,29 @@ class AuthManager:
         response = requests.post(url, params=payload, headers=headers)
 
         return response
+
+    def start_refresh_cycle(self, token_expiration):
+        refresh_cycle = threading.Thread(target=self.__keep_token_updated, args=(token_expiration,))
+        refresh_cycle.start()
+
+    def __keep_token_updated(self, token_expiration):
+        expired = False
+        exp_timer = timer.Timer()
+        exp_timer.start()
+
+        while not expired:
+            if token_expiration - 120 > exp_timer.elapsed_time():
+                time.sleep(1)
+                continue
+            else:
+                load_dotenv()
+                refresh_token = os.getenv('REFRESH_TOKEN')
+                access_token = self.get_new_token(refresh_token)
+                token_expiration = access_token["expires_in"]
+
+                dotenv_file = dotenv.find_dotenv()
+                dotenv.load_dotenv(dotenv_file)
+                dotenv.set_key(dotenv_file, 'ACCESS_TOKEN', access_token)
+
+                self.start_refresh_cycle(token_expiration)
+                expired = False
