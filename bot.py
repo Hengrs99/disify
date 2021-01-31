@@ -124,6 +124,13 @@ async def playlists(ctx):
 
 @bot.command(name='play')
 async def play(ctx, *args):
+    try:
+        channel = ctx.author.voice.channel
+        await channel.connect()
+        await ctx.send(f"Connected to {channel.name}")
+    except AttributeError:
+        await ctx.send("You need to connect to the voice channel before asking for my presence!")
+        
     user_id = ctx.message.author.id
     access_token = users[user_id].access_token
     guild = ctx.message.guild
