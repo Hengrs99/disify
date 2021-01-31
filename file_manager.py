@@ -7,11 +7,11 @@ class Manager:
 
     def read_file(self):
         if self.file_exists():
-            with open(self.file, "r") as f:
+            with open(self.file, 'r') as f:
                 content = f.readline()
 
         else:
-            content = "Not Generated"
+            content = 'Not Generated'
             time.sleep(1)
             self.read_file()
 
