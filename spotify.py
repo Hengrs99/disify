@@ -2,13 +2,15 @@ import os
 import spotipy
 import requests
 import base64
-from spotipy.oauth2 import SpotifyClientCredentials
-from dotenv import load_dotenv
-import threading
-import timer
 import time
-import json
+import threading
+
+import timer
+
+from spotipy.oauth2 import SpotifyClientCredentials
 from youtubesearchpython import VideosSearch
+from dotenv import load_dotenv
+
 
 class Client:
     def __init__(self):

@@ -1,17 +1,18 @@
 import os
-import spotify
+import asyncio
 import discord
-import requests
 import json
-import threading
+import random
+
 from dotenv import load_dotenv
 from discord.ext import commands
-from discord import FFmpegPCMAudio
-from youtube_dl import YoutubeDL
+from gtts import gTTS
+
+import spotify
+import audio_streaming
 import file_manager
 import user
-import random
-import time
+
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -20,8 +21,7 @@ bot = commands.Bot(command_prefix='#', help_command=None)
 client = spotify.Client()
 users = {}
 
-redirect_uri = 'http://127.0.0.1:8000/callback'
-auth_manager = spotify.AuthManager(redirect_uri)
+redirect_uri = 'http://127.0.0.1:5000/callback'
 
 
 @bot.event
@@ -29,7 +29,7 @@ async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
 
 
-@bot.command(name='join')
+@bot.command(name='connect')
 async def connect(ctx):
     try:
         channel = ctx.author.voice.channel
@@ -45,21 +45,6 @@ async def leave(ctx):
         await ctx.voice_client.disconnect()
     except AttributeError:
         await ctx.send("I'm not connected to any channel you could kick me out of!")
-
-
-@bot.command(name='stream')
-async def stream(ctx):
-    guild = ctx.message.guild
-    voice_client = guild.voice_client
-    url = "https://www.youtube.com/watch?v=RCuIzEZU2KQ"
-
-    YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
-    FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn','executable': 'C:/ffmpeg/bin/ffmpeg.exe'}
-
-    with YoutubeDL(YDL_OPTIONS) as ydl:
-        info = ydl.extract_info(url, download=False)
-    URL = info['formats'][0]['url']
-    voice_client.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS))
 
 
 @bot.command(name='find')
@@ -78,6 +63,7 @@ async def find(ctx, *args):
 
 @bot.command(name='login')
 async def login(ctx):
+    auth_manager = spotify.AuthManager(redirect_uri)
     token_refresher = spotify.TokenRefresher()
     tmp_manager = file_manager.Manager('tmp.txt')
 
@@ -124,17 +110,11 @@ async def playlists(ctx):
 
 @bot.command(name='play')
 async def play(ctx, *args):
-    try:
-        channel = ctx.author.voice.channel
-        await channel.connect()
-        await ctx.send(f"Connected to {channel.name}")
-    except AttributeError:
-        await ctx.send("You need to connect to the voice channel before asking for my presence!")
+    guild = ctx.message.guild
+    voice_client = guild.voice_client
         
     user_id = ctx.message.author.id
     access_token = users[user_id].access_token
-    guild = ctx.message.guild
-    voice_client = guild.voice_client
     audio_finder = spotify.AudioFinder()
 
     playlist_name = ' '.join(args).lower()
@@ -153,20 +133,34 @@ async def play(ctx, *args):
     random.shuffle(playlist.items)
 
     for item in playlist.items:
-        while voice_client.is_playing():
-            time.sleep(1)
-
         url = audio_finder.find_url(item)
         embed = discord.Embed(title=item.name, description=f"from {item.album} by {item.artist}", url=client.name_to_query(item.name, item.artist))
-        YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
-        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn','executable': 'C:/ffmpeg/bin/ffmpeg.exe'}
 
-        with YoutubeDL(YDL_OPTIONS) as ydl:
-            info = ydl.extract_info(url, download=False)
-        URL = info['formats'][0]['url']
-        voice_client.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS))
-        await ctx.send(embed=embed)
+        player = await audio_streaming.YTDLSource.from_url(url, loop=bot.loop, stream=True)
+        ctx.voice_client.play(player)
+
+        await ctx.send(embed=embed)      
+
+        while voice_client.is_playing():
+            await asyncio.sleep(1)
+
+
+@bot.command(name='say')
+async def say(ctx, *args):
+    guild = ctx.guild
+    voice_client = guild.voice_client
+    text = ' '.join(args)
+    language = 'en'
+
+    sound_manager = gTTS(text=text, lang=language, slow=False)
+    sound_manager.save('sound.mp3')
+
+    audio_source = discord.FFmpegPCMAudio('sound.mp3')
+    voice_client.play(audio_source, after=None)
+
+    while voice_client.is_playing():
+        await asyncio.sleep(1)
+    os.remove('sound.mp3')
 
 
 bot.run(TOKEN)
-
